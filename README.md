@@ -4,7 +4,7 @@ Juego web de estrategia y conquista con mapa mundial, escenarios historicos, dip
 
 ## Estado del proyecto
 
-Esta es la version activa del juego
+Esta es la version activa del juego. Las versiones HTML antiguas se conservan solo como referencia dentro de `obsolete/`.
 
 ## Como abrirlo
 

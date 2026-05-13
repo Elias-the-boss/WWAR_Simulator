@@ -40,6 +40,9 @@
                 .replaceAll('ðŸŒ', '🌍').replaceAll('ðŸš¨', '🚨').replaceAll('ðŸ¤', '🤝')
                 .replaceAll('ðŸª–', '🪖').replaceAll('ðŸ›©ï¸', '🛩️').replaceAll('ðŸš¢', '🚢')
                 .replaceAll('ðŸ¦¾', '🦾').replaceAll('ðŸª‚', '🪂').replaceAll('ðŸŒŸ', '🌟')
+                .replaceAll('ðŸ’¸', '💸').replaceAll('ðŸ’¥', '💥').replaceAll('ðŸ°', '🏰')
+                .replaceAll('ðŸ”¥', '🔥').replaceAll('ðŸ•Šï¸', '🕊️').replaceAll('ðŸ§±', '🧱')
+                .replaceAll('ðŸ´â€â˜ ï¸', '🏴‍☠️')
                 .replaceAll('ðŸ“…', '📅').replaceAll('ðŸ‘¥', '👥').replaceAll('ðŸ›’', '🛒')
                 .replaceAll('âŒ', '❌').replaceAll('â­', '⭐').replaceAll('âš“', '⚓')
                 .replaceAll('â¸', '⏸').replaceAll('â–¶ï¸', '▶️').replaceAll('ðŸ“–', '📖')
@@ -2205,8 +2208,8 @@
             document.getElementById('btn-com-p2').classList.toggle('switch-active', playerId === 4); document.getElementById('btn-com-p2').style.opacity = playerId === 4 ? '1' : '0.5';
             nukeModeActive = false; spyModeActive = false;
             ['p1','p2'].forEach(p => {
-                let bn = document.getElementById(`btn-nuke-mode-${p}`); if(bn) { bn.innerText = `MISIL NUC: OFF`; bn.style.backgroundColor = "#c0392b"; }
-                let bs = document.getElementById(`btn-spy-mode-${p}`); if(bs) { bs.innerText = `MANDAR ESPIA`; bs.style.backgroundColor = "#8e44ad"; }
+                let bn = document.getElementById(`btn-nuke-mode-${p}`); if(bn) { bn.innerText = cleanText(`MISIL ☢️: OFF`); bn.style.backgroundColor = "#c0392b"; }
+                let bs = document.getElementById(`btn-spy-mode-${p}`); if(bs) { bs.innerText = cleanText(`MANDAR ESPÍA 🕵️`); bs.style.backgroundColor = "#8e44ad"; }
             });
         }
 
@@ -2383,6 +2386,14 @@
             const campaignLevelCard = isCampaignMode && campaignLevel
                 ? `<div class="strategy-card"><strong>Nivel ${campaignLevelIndex + 1}: ${campaignLevel.title}</strong><br>${campaignLevel.objective}${campaignProgress ? `<div class="campaign-progress"><div class="campaign-progress-fill" style="width:${campaignProgress.pct}%"></div></div><small>Progreso: ${campaignProgress.label}</small>` : ''}<small>${campaignLevelDone ? 'Listo: pasa turno para reclamar recompensa.' : campaignLevel.rule}<br>Recompensa: ${campaignLevel.rewardText}</small></div>`
                 : '';
+            const siegeLines = pendingDefenses.map(def => {
+                const prov = provinces.find(p => p.id === def.targetProvId);
+                const attacker = nations[def.attackerId];
+                return prov ? `⚔️ ${prov.name}${attacker ? ` atacado por ${attacker.name}` : ''}` : null;
+            }).filter(Boolean).join('<br>') || 'No tienes territorios bajo asedio.';
+            const siegeCard = pendingDefenses.length
+                ? `<div class="strategy-card strategy-card-alert"><strong>Territorios bajo asedio</strong><br>${siegeLines}<small>Haz clic en el territorio marcado para defenderlo antes de pasar turno.</small></div>`
+                : '';
             const capitalWarningCard = nat.capitalLost
                 ? `<div class="strategy-card"><strong>Urgencia: recuperar capital</strong><br>Tu capital ha caído. Pierdes estabilidad e impuestos cada turno.<small>Reconquista una capital enemiga o conserva 3 turnos sin perder territorios para estabilizar el imperio.</small></div>`
                 : '';
@@ -2396,6 +2407,7 @@
                 <span class="strategy-pill">Objetivo: ${getVictoryProgressText(nat.id)}</span>
                 <div class="strategy-detail">
                     ${campaignLevelCard}
+                    ${siegeCard}
                     ${capitalWarningCard}
                     <div class="strategy-card"><strong>Misión de época: ${mission.title}</strong><br>${mission.goal}<small>${missionDone ? 'Cumplida: recibirás prestigio y bonus al avanzar.' : 'Pendiente.'}</small></div>
                     <div class="strategy-card"><strong>Territorios con recursos</strong><br>${resourceLines}${missingCount ? `<small>+${missingCount} mas</small>` : ''}</div>
@@ -2684,7 +2696,7 @@
             }
             if (spyModeActive !== false) {
                 if (prov.owner !== spyModeActive) { executeSpyAction(prov, spyModeActive); return; }
-                alert("No espÃƒÂ­es tu territorio."); return;
+                alert("No espíes tu territorio."); return;
             }
 
             let attId = activeCommander;
@@ -2821,6 +2833,31 @@
                 .attr('y', d => d.y + 12)
                 .text(d => RESOURCE_INFO[d.resource].icon);
 
+            const siegeData = pendingDefenses.map(def => {
+                const prov = provinces.find(p => p.id === def.targetProvId);
+                if (!prov) return null;
+                const c = d3Path.centroid(prov.feature);
+                return Number.isFinite(c[0]) && Number.isFinite(c[1]) ? { x: c[0], y: c[1], name: getShortCountryName(prov.name) } : null;
+            }).filter(Boolean);
+            d3G.selectAll('text.siege-marker')
+                .data(siegeData)
+                .enter()
+                .append('text')
+                .attr('class', 'siege-marker')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y - 18)
+                .attr('font-size', '18px')
+                .text('⚔️ ASEDIO');
+            d3G.selectAll('text.siege-marker-sub')
+                .data(siegeData)
+                .enter()
+                .append('text')
+                .attr('class', 'siege-marker-sub')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y + 2)
+                .attr('font-size', '12px')
+                .text(d => d.name);
+
             updateMapLabelVisibility(1);
             d3Svg.call(d3.zoom().scaleExtent([1, 8]).on('zoom', event => {
                 d3G.attr('transform', event.transform);
@@ -2883,6 +2920,31 @@
                 .attr('y', d => getProvinceCentroid(d).y + 18)
                 .text(d => RESOURCE_INFO[d.resource].icon);
 
+            const customSiegeData = pendingDefenses.map(def => {
+                const prov = provinces.find(p => p.id === def.targetProvId);
+                if (!prov) return null;
+                const c = getProvinceCentroid(prov);
+                return { x: c.x, y: c.y, name: getShortCountryName(prov.name) };
+            }).filter(Boolean);
+            d3G.selectAll('text.siege-marker')
+                .data(customSiegeData)
+                .enter()
+                .append('text')
+                .attr('class', 'siege-marker')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y - 18)
+                .attr('font-size', '20px')
+                .text('⚔️ ASEDIO');
+            d3G.selectAll('text.siege-marker-sub')
+                .data(customSiegeData)
+                .enter()
+                .append('text')
+                .attr('class', 'siege-marker-sub')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y + 4)
+                .attr('font-size', '13px')
+                .text(d => d.name);
+
             d3G.selectAll('text.empire-label')
                 .data(buildEmpireLabels())
                 .enter()
@@ -2906,19 +2968,19 @@
             let statusText = ""; let ter = prov.terrain === 'naval' ? " (Naval)" : (prov.terrain === 'winter' ? " (Nieve)" : (prov.terrain === 'desert' ? " (Desierto)" : (prov.terrain === 'mountain' ? " (Montaña)" : "")));
 
             if (isUnderSiege) statusText = "<strong style='color:#e74c3c; font-size:1.2em;'>⚔️ ¡ASEDIO! Haz clic para defender</strong>" + ter;
-            else if (nukeModeActive !== false && prov.owner !== nukeModeActive) statusText = "<strong style='color:#e74c3c; font-size:1.2em;'>â˜¢ï¸ CLICK PARA DESTRUIR â˜¢ï¸</strong>";
-            else if (spyModeActive !== false && prov.owner !== spyModeActive) statusText = "<strong style='color:#8e44ad; font-size:1.2em;'>ðŸ•µï¸ MANDAR ESPÃA ðŸ•µï¸</strong>";
-            else if (prov.owner === 9) statusText = "<strong style='color:#f1c40f;'>ðŸ’° Mercenarios Disponibles</strong>";
+            else if (nukeModeActive !== false && prov.owner !== nukeModeActive) statusText = "<strong style='color:#e74c3c; font-size:1.2em;'>☢️ CLICK PARA DESTRUIR ☢️</strong>";
+            else if (spyModeActive !== false && prov.owner !== spyModeActive) statusText = "<strong style='color:#8e44ad; font-size:1.2em;'>🕵️ MANDAR ESPÍA 🕵️</strong>";
+            else if (prov.owner === 9) statusText = "<strong style='color:#f1c40f;'>💰 Mercenarios disponibles</strong>";
             else if (prov.owner !== activeCommander) {
                 let isOtherPlayer = isTwoPlayerMode && (prov.owner === 0 || prov.owner === 4);
-                if(isOtherPlayer) statusText = "<em style='color:#ff3f34;'>âš”ï¸ Click para Invadir (PvP)</em>" + ter;
+                if(isOtherPlayer) statusText = "<em style='color:#ff3f34;'>⚔️ Click para invadir (PvP)</em>" + ter;
                 else {
-                    statusText = "<em style='color:#ff3f34;'>ðŸ¤ Click para Diplomacia/Ataque</em>" + ter;
-                    if(owner.pactTurns > 0) statusText += "<br><span style='color:#3498db;'>ðŸ•Šï¸ Pacto de No AgresiÃ³n Activo</span>";
-                    if(prov.id === 10) statusText += "<br><strong style='color:#9b59b6;'>âš ï¸ PELIGRO: Nivel Jefe Final</strong>";
+                    statusText = "<em style='color:#ff3f34;'>🤝 Click para diplomacia/ataque</em>" + ter;
+                    if(owner.pactTurns > 0) statusText += "<br><span style='color:#3498db;'>🕊️ Pacto de no agresión activo</span>";
+                    if(prov.id === 10) statusText += "<br><strong style='color:#9b59b6;'>⚠️ PELIGRO: nivel jefe final</strong>";
                 }
-            } else if (prov.isColony) statusText = "<em style='color:#f1c40f;'>ðŸ”¥ Click para Asimilar Colonia</em>";
-            else statusText = "<em style='color:#2ecc71;'>ðŸ° Click para Mejorar Fuerte</em>";
+            } else if (prov.isColony) statusText = "<em style='color:#f1c40f;'>🔥 Click para asimilar colonia</em>";
+            else statusText = "<em style='color:#2ecc71;'>🏰 Click para mejorar fuerte</em>";
 
             const capitalText = prov.isCapital ? "<br><strong style='color:#f1c40f;'>CAP Capital estrategica</strong>" : "";
             const resourceText = prov.resource ? `<br><span style='color:#2ecc71;'>${RESOURCE_INFO[prov.resource].icon} ${RESOURCE_INFO[prov.resource].label}</span>` : "";
@@ -2946,14 +3008,14 @@
             const next = getNextResearchTech(nat);
             const techList = Array.from(ensureTechSet(nat)).join(', ') || 'ninguna';
             if (!next) {
-                panel.innerHTML = `<div class="research-line"><strong>Tecnologias:</strong> ${techList}</div><div class="research-line">Todo lo disponible para esta epoca esta desbloqueado.</div>`;
+                panel.innerHTML = cleanText(`<div class="research-line"><strong>Tecnologías:</strong> ${techList}</div><div class="research-line">Todo lo disponible para esta época está desbloqueado.</div>`);
                 return;
             }
-            panel.innerHTML = `
-                <div class="research-line"><strong>Tecnologias:</strong> ${techList}</div>
+            panel.innerHTML = cleanText(`
+                <div class="research-line"><strong>Tecnologías:</strong> ${techList}</div>
                 <div class="research-line">Siguiente: <strong>${next}</strong> (${nat.research || 0}/100)</div>
-                <button onclick="investigateTechnology()" style="width:100%; background:#34495e;">INVESTIGAR (${formatPrice(getResearchCost())}ðŸ’°)</button>
-            `;
+                <button onclick="investigateTechnology()" style="width:100%; background:#34495e;">INVESTIGAR (${formatPrice(getResearchCost())}💰)</button>
+            `);
         }
 
         function updateShopButtonStates() {
@@ -3166,26 +3228,26 @@
         // ==========================================
         function toggleSpyMode(playerId) {
             if (nations[playerId].spies <= 0) { playSound('error'); return; }
-            if (spyModeActive === playerId) { spyModeActive = false; logEvent(`OperaciÃ³n encubierta abortada.`); } 
-            else { spyModeActive = playerId; nukeModeActive = false; logEvent(`ðŸ•µï¸ EspÃ­a listo. Haz clic en un enemigo.`); }
+            if (spyModeActive === playerId) { spyModeActive = false; logEvent(`Operación encubierta abortada.`); } 
+            else { spyModeActive = playerId; nukeModeActive = false; logEvent(`🕵️ Espía listo. Haz clic en un enemigo.`); }
             playSound('spy');
             let btn = document.getElementById(playerId === 0 ? 'btn-spy-mode-p1' : 'btn-spy-mode-p2');
-            btn.innerText = spyModeActive === playerId ? "Â¡SELECCIONA OBJETIVO! ðŸ•µï¸" : "MANDAR ESPÃA ðŸ•µï¸"; btn.style.backgroundColor = spyModeActive === playerId ? "#27ae60" : "#8e44ad";
-            let nBtn = document.getElementById(playerId === 0 ? 'btn-nuke-mode-p1' : 'btn-nuke-mode-p2'); if(nBtn) { nBtn.innerText = `MISIL â˜¢ï¸: OFF`; nBtn.style.backgroundColor = "#c0392b"; }
+            btn.innerText = cleanText(spyModeActive === playerId ? "¡SELECCIONA OBJETIVO! 🕵️" : "MANDAR ESPÍA 🕵️"); btn.style.backgroundColor = spyModeActive === playerId ? "#27ae60" : "#8e44ad";
+            let nBtn = document.getElementById(playerId === 0 ? 'btn-nuke-mode-p1' : 'btn-nuke-mode-p2'); if(nBtn) { nBtn.innerText = cleanText(`MISIL ☢️: OFF`); nBtn.style.backgroundColor = "#c0392b"; }
         }
 
         function executeSpyAction(prov, shooterId) {
             if (prov.owner === 9) { alert("No puedes espiar a mercenarios neutrales."); return; }
             nations[shooterId].spies--; spyModeActive = false;
             let btn = document.getElementById(shooterId === 0 ? 'btn-spy-mode-p1' : 'btn-spy-mode-p2');
-            btn.innerText = "MANDAR ESPÃA ðŸ•µï¸"; btn.style.backgroundColor = "#8e44ad";
+            btn.innerText = cleanText("MANDAR ESPÍA 🕵️"); btn.style.backgroundColor = "#8e44ad";
             playSound('spy');
             
             const roll = Math.random();
-            if(roll < 0.34) { prov.forts = 0; logEvent(`ðŸ’¥ Â¡Ã‰XITO! Tu espÃ­a ha destruido todos los fuertes en ${prov.name}.`); } 
+            if(roll < 0.34) { prov.forts = 0; logEvent(`💥 ¡ÉXITO! Tu espía ha destruido todos los fuertes en ${prov.name}.`); } 
             else if (roll < 0.67) {
                 let stolen = Math.floor(nations[prov.owner].money * 0.3); nations[prov.owner].money -= stolen; nations[shooterId].money += stolen;
-                logEvent(`ðŸ’° Â¡GOLPE PERFECTO! Tu espÃ­a robÃ³ ${stolen}ðŸ’° de las reservas de ${nations[prov.owner].name}.`);
+                logEvent(`💰 ¡GOLPE PERFECTO! Tu espía robó ${stolen}💰 de las reservas de ${nations[prov.owner].name}.`);
             } else {
                 const enemy = nations[prov.owner];
                 const knownTech = Array.from(ensureTechSet(enemy)).filter(t => !ensureTechSet(nations[shooterId]).has(t));
@@ -3203,17 +3265,17 @@
         function toggleNukeMode(playerId) {
             if (nations[playerId].nukes <= 0) { playSound('error'); return; }
             if (nukeModeActive === playerId) { nukeModeActive = false; logEvent(`Misil abortado.`); } 
-            else { nukeModeActive = playerId; spyModeActive = false; logEvent(`âš ï¸ Misil nuclear preparado.`); }
+            else { nukeModeActive = playerId; spyModeActive = false; logEvent(`⚠️ Misil nuclear preparado.`); }
             playSound('diplomacy');
             let btn = document.getElementById(playerId === 0 ? 'btn-nuke-mode-p1' : 'btn-nuke-mode-p2');
-            btn.innerText = nukeModeActive === playerId ? "Â¡SELECCIONA OBJETIVO! â˜¢ï¸" : `MISIL â˜¢ï¸: OFF`; btn.style.backgroundColor = nukeModeActive === playerId ? "#8e44ad" : "#c0392b";
-            let sBtn = document.getElementById(playerId === 0 ? 'btn-spy-mode-p1' : 'btn-spy-mode-p2'); if(sBtn) { sBtn.innerText = "MANDAR ESPÃA ðŸ•µï¸"; sBtn.style.backgroundColor = "#8e44ad"; }
+            btn.innerText = cleanText(nukeModeActive === playerId ? "¡SELECCIONA OBJETIVO! ☢️" : `MISIL ☢️: OFF`); btn.style.backgroundColor = nukeModeActive === playerId ? "#8e44ad" : "#c0392b";
+            let sBtn = document.getElementById(playerId === 0 ? 'btn-spy-mode-p1' : 'btn-spy-mode-p2'); if(sBtn) { sBtn.innerText = cleanText("MANDAR ESPÍA 🕵️"); sBtn.style.backgroundColor = "#8e44ad"; }
         }
 
         function executeNuclearStrike(prov, shooterId) {
             nations[shooterId].nukes--; nukeModeActive = false;
             let btn = document.getElementById(shooterId === 0 ? 'btn-nuke-mode-p1' : 'btn-nuke-mode-p2');
-            btn.innerText = `MISIL â˜¢ï¸: OFF`; btn.style.backgroundColor = "#c0392b";
+            btn.innerText = cleanText(`MISIL ☢️: OFF`); btn.style.backgroundColor = "#c0392b";
             playSound('nuke'); let flash = document.getElementById('nuke-flash'); flash.style.opacity = '1';
             
             setTimeout(() => {
@@ -3221,7 +3283,7 @@
                 prov.owner = shooterId; prov.isColony = true; prov.forts = 0; 
                 handleProvinceCaptured(prov, oldOwner, shooterId);
                 pendingDefenses = pendingDefenses.filter(d => d.targetProvId !== prov.id);
-                nations[shooterId].money += 500000; logEvent(`â˜¢ï¸ Â¡${nations[shooterId].name} borrÃ³ ${prov.name} del mapa! BotÃ­n: +500.000ðŸ’°`);
+                nations[shooterId].money += 500000; logEvent(`☢️ ¡${nations[shooterId].name} borró ${prov.name} del mapa! Botín: +500.000💰`);
                 updateHUD(); drawMap(); flash.style.opacity = '0';
             }, 100); 
         }
@@ -3370,7 +3432,7 @@
         }
 
         function endTurn() { 
-            if (pendingDefenses.length > 0) { playSound('error'); alert("Â¡Tienes territorios bajo asedio! DefiÃ©ndelos antes de pasar de aÃ±o."); return; }
+            if (pendingDefenses.length > 0) { playSound('error'); alert("¡Tienes territorios bajo asedio! Defiéndelos antes de pasar de año."); return; }
             playSound('turn');
             turn++; 
             campaignTurnsInEra++;
@@ -3795,7 +3857,7 @@
         }
 
         function getVisibleBattleColor(color, side = 'right') {
-            const fallback = side === 'left' ? '#2ecc71' : '#f1c40f';
+            const fallback = side === 'left' ? '#00d8ff' : '#ff5b4a';
             if (!color || typeof color !== 'string') return fallback;
 
             let hex = color.trim();
@@ -3808,13 +3870,16 @@
             const g = parseInt(hex.slice(3, 5), 16);
             const b = parseInt(hex.slice(5, 7), 16);
             const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-            if (luminance >= 0.32) return hex;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const saturation = max === 0 ? 0 : (max - min) / max;
+            if (luminance >= 0.36) return hex;
+            if (saturation < 0.18 && luminance < 0.28) return fallback;
 
-            const mix = side === 'left' ? { r: 46, g: 204, b: 113 } : { r: 241, g: 196, b: 15 };
-            const lift = 0.65;
-            const rr = Math.round(r * (1 - lift) + mix.r * lift);
-            const gg = Math.round(g * (1 - lift) + mix.g * lift);
-            const bb = Math.round(b * (1 - lift) + mix.b * lift);
+            const lift = luminance < 0.2 ? 0.78 : 0.55;
+            const rr = Math.round(r + (255 - r) * lift);
+            const gg = Math.round(g + (255 - g) * lift);
+            const bb = Math.round(b + (255 - b) * lift);
             return `#${[rr, gg, bb].map(v => v.toString(16).padStart(2, '0')).join('')}`;
         }
 
@@ -3856,11 +3921,15 @@
             let leftName = isHumanLeft ? getBattlePlayerLabel(d.attNat.id) : d.attNat.name;
             let rightName = isHumanRight ? getBattlePlayerLabel(d.defNat.id) : "ENEMIGO (IA)";
 
-            document.getElementById('p1-battle-keys').innerHTML = cleanText(`<b>${leftName} (Izq):</b> [WASD][Z/X] | <span style='color:#f1c40f;'>[G] Gen</span> | <span style='color:#3498db;'>[C] Zep</span> | <span style='color:#e67e22;'>[T] Jug</span> | <span style='color:#2980b9;'>[B] Barco</span> | <span style='color:#1abc9c;'>[P] Para</span> | <span style='color:#16a085;'>[M] Sub</span>`);
+            document.getElementById('p1-battle-keys').innerHTML = cleanText(`<b>${leftName} (Izq):</b> clic en tropa | [WASD] mover | [Z/X] disparar | <span style='color:#f1c40f;'>[G] Gen</span> | <span style='color:#3498db;'>[C] Zep</span> | <span style='color:#e67e22;'>[T] Jug</span> | <span style='color:#2980b9;'>[B] Barco</span> | <span style='color:#1abc9c;'>[P] Para</span> | <span style='color:#16a085;'>[M] Sub</span>`);
             
-            let p2Keys = `<b>${rightName} (Der):</b> [FLECHAS][1/2]`;
+            let p2Keys = `<b>${rightName} (Der):</b> clic en tropa | [FLECHAS] mover | [1/2] disparar`;
             if (isHumanRight) p2Keys += ` | <span style='color:#f1c40f;'>[8] Gen</span> | <span style='color:#3498db;'>[3] Zep</span> | <span style='color:#e67e22;'>[4] Jug</span> | <span style='color:#2980b9;'>[5] Barco</span> | <span style='color:#1abc9c;'>[6] Para</span> | <span style='color:#16a085;'>[7] Sub</span>`;
             document.getElementById('p2-battle-keys').innerHTML = cleanText(p2Keys);
+            const help = document.getElementById('battle-help');
+            if (help) {
+                help.innerHTML = cleanText(`Selecciona una tropa normal con clic para controlarla. ${leftName}: WASD mueve, Z dispara y X usa canon si la epoca lo permite.${isHumanRight ? ` ${rightName}: flechas mueven, 1 dispara y 2 usa canon.` : ''} Si una tropa rompe la linea enemiga y llega al borde contrario, la batalla termina.`);
+            }
 
             document.getElementById('btn-deploy-p1').classList.toggle('hidden', !isHumanLeft); document.getElementById('btn-deploy-p1').innerText = `+ 🪖 ${leftName}`;
             document.getElementById('btn-deploy-p2').classList.toggle('hidden', !isHumanRight); document.getElementById('btn-deploy-p2').innerText = `+ 🪖 ${rightName}`;
@@ -3976,6 +4045,7 @@
             else if (type === 'drone') { uEl.className = 'pixel-unit bat-drone'; w = 18; h = 8; hp = 2; isSuper = true; }
             else if (type === 'bunker') { uEl.className = 'pixel-unit bat-bunker'; w = 20; h = 50; hp = 25; isSuper = true; }
             else { uEl.className = 'pixel-unit bat-infantry'; uEl.style.backgroundColor = color; uEl.style.color = color; w = 4; h = 6; }
+            uEl.classList.add(side === 'left' ? 'battle-side-left' : 'battle-side-right');
 
             let x = 0, y = 0, vy = 0;
             if (type === 'para') { x = arena.offsetWidth/2 + (side === 'left' ? 1 : -1) * (Math.random() * 100 + 50); y = 10; vy = 3; } 
@@ -4115,7 +4185,27 @@
         function updatePhysics() {
             if(isPaused) return;
 
-            let arena = document.getElementById('battle-arena'); let time = Date.now(), d = currentBattleData, borderCrossed = false;
+            let arena = document.getElementById('battle-arena'); let time = Date.now(), d = currentBattleData, breakthroughSide = null;
+            const noteBreakthrough = (side) => {
+                if (!breakthroughSide) breakthroughSide = side;
+                else if (breakthroughSide !== side) breakthroughSide = 'both';
+            };
+            const resolveBreakthroughByFieldControl = () => {
+                const leftField = battleState.units.filter(u => !u.isDead && u.side === 'left' && u.type !== 'bunker').length;
+                const rightField = battleState.units.filter(u => !u.isDead && u.side === 'right' && u.type !== 'bunker').length;
+                if (leftField === rightField) {
+                    const leftReserve = Math.max(0, d.totalA - d.deadA);
+                    const rightReserve = Math.max(0, d.totalD - d.deadD);
+                    return {
+                        result: leftReserve >= rightReserve ? 'win' : 'lose',
+                        reason: `¡Ruptura de linea! Empate en el campo (${leftField}-${rightField}); decide la reserva total (${leftReserve}-${rightReserve}).`
+                    };
+                }
+                return {
+                    result: leftField > rightField ? 'win' : 'lose',
+                    reason: `¡Ruptura de linea! Gana quien domina el campo: ${leftField} contra ${rightField} tropas desplegadas.`
+                };
+            };
             const era = getBattleEraConfig();
             let terrainMult = 1;
             if (d.type !== 'civilian') {
@@ -4192,7 +4282,7 @@
                     let spd = 1.0 * terrainMult * factionMult * auraSpeed; u.x += advanceDir * spd;
                     if (u.stealthTimer > 0) { u.stealthTimer--; if(u.stealthTimer <= 0) { u.isStealth = true; u.el.style.opacity = 0.4; } } 
                     else if (Math.random() < 0.03 + auraFire) { u.isStealth = false; u.el.style.opacity = 1; u.stealthTimer = 60; fire(u.x + (u.side === 'left' ? 30 : -10), u.y + 5, u.side === 'left', 'bullet-torpedo', arena); playSound('cannon'); }
-                    if ((u.side === 'left' && u.x >= arenaW - 30) || (u.side === 'right' && u.x <= 10)) borderCrossed = true;
+                    if ((u.side === 'left' && u.x >= arenaW - 30) || (u.side === 'right' && u.x <= 10)) noteBreakthrough(u.side);
                     u.el.style.left = u.x + 'px'; return; 
                 }
 
@@ -4212,7 +4302,7 @@
                         }
                     });
 
-                    if ((u.side === 'left' && u.x >= arenaW - 40) || (u.side === 'right' && u.x <= 10)) borderCrossed = true;
+                    if ((u.side === 'left' && u.x >= arenaW - 40) || (u.side === 'right' && u.x <= 10)) noteBreakthrough(u.side);
                     u.el.style.left = u.x + 'px'; return; 
                 }
 
@@ -4240,7 +4330,7 @@
                 }
 
                 if(u.y < 20 || u.y > arenaH - 10) u.vy *= -1;
-                if ((u.side === 'left' && u.x >= arenaW - 20) || (u.side === 'right' && u.x <= 20)) borderCrossed = true;
+                if ((u.side === 'left' && u.x >= arenaW - 20) || (u.side === 'right' && u.x <= 20)) noteBreakthrough(u.side);
 
                 u.el.style.left = u.x + 'px'; u.el.style.top = u.y + 'px'; u.el.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
             });
@@ -4273,12 +4363,10 @@
 
             battleState.units = battleState.units.filter(u => !u.isDead); battleState.bullets = battleState.bullets.filter(b => !b.isDead); battleState.bombs = battleState.bombs.filter(b => !b.isDead);
 
-            if (borderCrossed) {
-                battleState.units.forEach(u => {
-                    if (u.isDead) return;
-                    const edgeMargin = Math.max(22, u.w || 8);
-                    if ((u.side === 'left' && u.x >= arenaW - edgeMargin) || (u.side === 'right' && u.x <= edgeMargin)) redirectEdgeUnit(u, arenaW, arenaH);
-                });
+            if (breakthroughSide) {
+                const fieldResult = resolveBreakthroughByFieldControl();
+                finishBattle(fieldResult.result, fieldResult.reason);
+                return;
             }
             if (d.deadA >= d.totalA) finishBattle('lose', "¡Aniquilación! Tus tropas han caído."); else if (d.deadD >= d.totalD) finishBattle('win', "¡Aniquilación! Enemigo destruido.");
         }
