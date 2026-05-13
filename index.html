@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAR Simulator 1928: Guerra Total</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="src/styles/game.css">
+</head>
+<body>
+
+    <div id="nuke-flash"></div>
+    <div id="tooltip" class="hidden"></div>
+    <button id="audio-toggle" type="button" onclick="toggleAudio()" title="Activar o desactivar sonido" aria-label="Sonido activado">🔊</button>
+
+    <div id="newspaper-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h1 style="color: #000; font-size: 1.2em; margin: 0; border-bottom: 1px solid #000;">THE GLOBAL TIMES - 1928</h1>
+            <div class="news-title" id="news-title">TITULAR</div>
+            <p id="news-desc" style="font-size: 1.3em; font-style: italic;"></p>
+            <div id="news-actions" class="news-actions hidden"></div>
+            <p style="font-size: 0.9em; margin-top: 20px;">El mundo contiene la respiración...</p>
+            <button onclick="closeNewspaper()" style="background-color: #2c3e50; width: 100%; margin-top: 20px;">CONTINUAR</button>
+        </div>
+    </div>
+
+    <div id="diplomacy-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="dip-title" style="color: #f39c12; margin-top: 0;">Territorio</h2>
+            <p>Bajo el control de: <strong id="dip-owner" style="font-size: 1.2em;">Dueño</strong></p>
+            
+            <div id="dip-normal-options">
+                <p style="color: #bdc3c7; font-size: 0.9em; margin-bottom: 20px;">¿Qué deseas hacer en esta frontera?</p>
+                <button id="btn-dip-att" onclick="confirmAttack()" style="width: 100%; background-color: #e74c3c;">⚔️ INICIAR INVASIÓN</button><br>
+                <button id="btn-dip-pact" onclick="buyPact()" style="width: 100%; background-color: #3498db;"></button><br>
+                <button id="btn-dip-alliance" onclick="toggleAllianceFromDiplomacy()" style="width: 100%; background-color: #27ae60;"></button><br>
+                <button id="btn-dip-bribe" onclick="buyBribe()" style="width: 100%; background-color: #9b59b6;"></button><br>
+            </div>
+
+            <div id="dip-merc-options" class="hidden">
+                <p style="color: #e67e22; font-size: 1em; margin-bottom: 20px;"><b>¡Piratas mercenarios controlan esta zona!</b></p>
+                <button id="btn-dip-merc-att" onclick="confirmAttack()" style="width: 100%; background-color: #e74c3c;">⚔️ ANIQUILARLOS</button><br>
+                <button id="btn-dip-merc-buy" onclick="buyMercenaries()" style="width: 100%; background-color: #f1c40f; color:black;"></button><br>
+            </div>
+
+            <button onclick="closeDiplomacy()" style="width: 100%; background-color: #7f8c8d; margin-top: 15px;">❌ CANCELAR</button>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="border-color: #f1c40f;">
+            <h2 id="shop-title" style="color: #f1c40f; margin-top: 0;">🛒 MERCADO MILITAR</h2>
+            <p style="color: #bdc3c7; font-size: 1em; margin-bottom: 15px; background: #111; padding: 10px; border-radius: 5px;">
+                Fondos: <strong style="color:#f1c40f;"><span id="shop-money-display">0</span>💰</strong> | <strong style="color:#2ecc71;"><span id="shop-pop-display">0</span>👥</strong>
+            </p>
+            <div id="research-panel" style="background:#111; border:1px solid #34495e; padding:10px; border-radius:6px; margin-bottom:12px; text-align:left;"></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button onclick="buyItem('recruit')" style="background-color: #2ecc71; color: #000; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🪖 Reclutar 50 Bat.</span><strong id="price-recruit"></strong>
+                </button>
+                <button onclick="buyItem('gen')" style="background-color: #f1c40f; color: #000; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🌟 Comandante General</span><strong id="price-gen"></strong>
+                </button>
+                <button onclick="buyItem('para')" style="background-color: #1abc9c; color: #000; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🪂 Paracaidistas</span><strong id="price-para"></strong>
+                </button>
+                <button onclick="buyItem('spy')" style="background-color: #8e44ad; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🕵️ Espía Saboteador</span><strong id="price-spy"></strong>
+                </button>
+                <button onclick="buyItem('air')" style="background-color: #3498db; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🛩️ Zepelín Bombardero</span><strong id="price-air"></strong>
+                </button>
+                <button onclick="buyItem('sub')" style="background-color: #16a085; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>⚓ Submarino Sigiloso</span><strong id="price-sub"></strong>
+                </button>
+                <button onclick="buyItem('ship')" style="background-color: #2980b9; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🚢 Acorazado Naval</span><strong id="price-ship"></strong>
+                </button>
+                <button onclick="buyItem('jug')" style="background-color: #e67e22; color: #000; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>🦾 Juggernaut (Tierra)</span><strong id="price-jug"></strong>
+                </button>
+                <button onclick="buyItem('nuke')" style="background-color: #e74c3c; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <span>☢️ Bomba Nuclear</span><strong id="price-nuke"></strong>
+                </button>
+            </div>
+            <button onclick="closeShop()" style="width: 100%; background-color: #7f8c8d; margin-top: 15px;">❌ CERRAR TIENDA</button>
+        </div>
+    </div>
+
+    <div id="menu-screen" class="new-main-menu">
+        <div class="new-menu-shell">
+            <div class="menu-map-bg"></div>
+            <div class="menu-top-art">
+                <div class="menu-flag"></div>
+                <div class="menu-soldier soldier-left"></div>
+                <div class="menu-soldier soldier-right"></div>
+                <div class="menu-sword"></div>
+            </div>
+            <div class="menu-title">
+                <div class="menu-war">WAR</div>
+                <div class="menu-simulator">SIMULATOR</div>
+            </div>
+            <div class="menu-actions">
+                <button onclick="showScreen('setup-screen')">NEW GAME</button>
+                <button onclick="showScreen('setup-screen')">CARGAR PARTIDA</button>
+                <button onclick="showScreen('setup-screen'); document.getElementById('campaign-mode').checked = true;">CAMPANA</button>
+                <button onclick="openContinentGallery()">USAR CONTINENTE</button>
+                <button onclick="openContinentEditor()">CREADOR DE CONTINENTES</button>
+                <button onclick="openFlagCreator()">CREADOR DE BANDERAS</button>
+                <button onclick="showScreen('tutorial-screen')">TUTORIAL</button>
+                <button onclick="openGallery()">GALERIA DE BANDERAS</button>
+            </div>
+        </div>
+        <div class="custom-logo">
+            <div class="logo-war">
+                <span style="color: #c0392b; transform: rotate(-10deg); position: relative;">W<span style="font-size: 0.3em; position: absolute; top: -15px; right: -20px; transform: rotate(15deg);">🪖</span><span style="font-size: 0.3em; position: absolute; bottom: 10px; left: -30px;">🚩</span></span>
+                <span style="color: #e67e22; transform: rotate(5deg);">A</span>
+                <span style="color: #d35400; transform: rotate(-8deg);">R</span>
+            </div>
+            <div class="logo-simulator">
+                <span style="transform: translateY(2px);">S</span><span style="transform: translateY(-2px);">i</span><span style="transform: translateY(3px);">m</span><span style="transform: translateY(-1px);">u</span><span style="transform: translateY(2px);">l</span><span style="transform: translateY(-3px);">a</span><span style="transform: translateY(1px);">t</span><span style="transform: translateY(-2px);">o</span><span style="transform: translateY(2px);">r</span>
+            </div>
+            <div class="logo-year"><span style="transform: rotate(-3deg);">1928</span><span style="font-size: 0.6em; transform: rotate(45deg) translateY(-10px); margin-left: 5px; text-shadow: none;">🗡️</span></div>
+        </div>
+        <p style="font-size: 1.2em; color:#f1c40f;"><b>Tienda Dinámica Configurable con Código Limpio.</b></p>
+        
+        <div>
+            <button onclick="showScreen('setup-screen')" style="font-size: 1.1em; padding: 15px 30px;">▶️ NUEVA PARTIDA</button>
+            <button onclick="showScreen('tutorial-screen')" style="font-size: 1.1em; padding: 15px 30px; background-color: #8e44ad;">📖 CÓMO JUGAR (TUTORIAL)</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <button onclick="openFlagCreator()" style="background-color: #2980b9;">🎨 CREAR BANDERA</button>
+            <button onclick="openGallery()" style="background-color: #16a085;">🖼️ GALERÍA DE BANDERAS</button>
+        </div>
+    </div>
+
+    <div id="tutorial-screen" class="hidden">
+        <h2 style="color: #8e44ad; font-size: 2.5em; margin-top: 0; text-shadow: 2px 2px 5px black;">📖 MANUAL DEL COMANDANTE</h2>
+        <div class="tutorial-container">
+            <h3 style="color: #f1c40f;">🌍 FASE DE MAPA Y ECONOMÍA</h3>
+            <ul>
+                <li><b>Mercenarios:</b> Zonas de color negro. Puedes pagarles para hacerte con su territorio.</li>
+                <li><b>Fuertes:</b> Crear un fuerte (🏰) generará Búnkeres en la batalla que bloquearán los disparos enemigos.</li>
+                <li><b>Diplomacia:</b> Puedes pagar Pactos de No Agresión (🤝) o sobornar (💸) a la IA para que ataque a otros.</li>
+                <li><b>Botín:</b> Si conquistas una provincia o lanzas un Nuke, ¡ganarás <b>500.000💰</b> del banco enemigo!</li>
+                <li><b>Eventos Mundiales:</b> Cada 4 años saltará el Periódico Global. ¡Cuidado con el Crack del 29!</li>
+            </ul>
+
+            <h3 style="color: #2ecc71;">🛒 LA TIENDA MILITAR</h3>
+            <p>Usa tus fondos para dominar la guerra. Aquí tienes las armas especiales:</p>
+            <ul>
+                <li><b>🪂 Paracaidistas (4k💰):</b> Caen en la mitad del campo enemigo.</li>
+                <li><b>🕵️ Espías (7k💰):</b> Úsalos en el mapa para volar fuertes enemigos o robarles dinero.</li>
+                <li><b>🛩️ Zepelín Bombardero (3k💰):</b> Ataque aéreo que barre las trincheras.</li>
+                <li><b>⚓ Submarino Sigiloso (6k💰):</b> Invisible y sin recibir daño hasta que dispara un torpedo (Solo Mar).</li>
+                <li><b>🚢 Acorazado (9k💰):</b> Super barco con mucha vida que avanza lento (Solo Mar).</li>
+                <li><b>🦾 Juggernaut (9k💰):</b> Super tanque destructor (Solo Tierra).</li>
+                <li><b>🌟 General (50k💰):</b> Da un aura dorada a tus tropas para que disparen el doble de rápido. ¡Si muere, pierdes la batalla!</li>
+                <li><b>☢️ Bomba Nuclear (1M💰):</b> Destruye y conquista cualquier territorio del mapa de un solo clic.</li>
+            </ul>
+
+            <h3 style="color: #e74c3c;">⚔️ CONTROLES EN BATALLA</h3>
+            <ul>
+                <li><b>JUGADOR 1 (Izquierda):</b>
+                    <ul>
+                        <li><b>Moverse:</b> <code>W, A, S, D</code></li>
+                        <li><b>Disparar:</b> <code>Z</code> (ligero) o <code>X</code> (cañón).</li>
+                        <li><b>Especiales:</b> <code>G</code> (General), <code>C</code> (Zepelín), <code>T</code> (Jug), <code>B</code> (Acorazado), <code>P</code> (Paracaídas), <code>M</code> (Submarino).</li>
+                    </ul>
+                </li>
+                <li><b>JUGADOR 2 / IA (Derecha):</b>
+                    <ul>
+                        <li><b>Moverse:</b> Flechas Direccionales <code>⬆, ⬇, ⬅, ➡</code></li>
+                        <li><b>Disparar:</b> <code>1</code> (ligero) o <code>2</code> (cañón).</li>
+                        <li><b>Especiales:</b> <code>8</code> (General), <code>3</code> (Zep), <code>4</code> (Jug), <code>5</code> (Barco), <code>6</code> (Para), <code>7</code> (Sub).</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <button onclick="showScreen('menu-screen')" style="margin-top: 20px; font-size: 1.2em; padding: 15px 40px; background-color: #34495e;">ENTENDIDO, VOLVER AL MENÚ</button>
+    </div>
+
+    <div id="flag-creator-screen" class="hidden">
+        <div class="paint-controls">
+            <button id="tool-brush" class="active" onclick="setTool('brush')">🖌️ Pincel</button>
+            <button id="tool-fill" onclick="setTool('fill')">🪣 Relleno</button>
+            <button id="tool-eraser" onclick="setTool('eraser')">🧼 Goma</button>
+            <button id="tool-sticker" onclick="setTool('sticker')">⭐ Pegatinas</button>
+            <span style="margin: 0 10px; color: #fff;">|</span>
+            <input type="color" id="paint-color" value="#e74c3c" title="Color">
+            <input type="range" id="brush-size" min="1" max="40" value="10" title="Grosor">
+            <select id="sticker-select" style="padding: 8px; font-size: 16px; border-radius: 5px;">
+                <option value="🐈" data-type="text">🐈 Gato Naranja</option>
+                <option value="📎" data-type="text">📎 Pegatina Clipo</option>
+                <option value="☢️" data-type="text">☢️ Nuclear</option> 
+                <option value="🦅" data-type="text">🦅 Águila</option>
+                <option value="brazil" data-type="symbol">Brasil</option>
+                <option value="rome" data-type="symbol">Imperio Romano</option>
+                <option value="spain" data-type="symbol">España</option>
+                <option value="mongolia" data-type="symbol">Mongolia</option>
+                <option value="china" data-type="symbol">China</option>
+                <option value="vietnam" data-type="symbol">Vietnam</option>
+                <option value="serbia" data-type="symbol">Serbia</option>
+                <option value="egypt" data-type="symbol">Egipto</option>
+                <option value="saudi" data-type="symbol">Arabia Saudi</option>
+                <option value="portugal" data-type="symbol">Portugal</option>
+                <option value="morocco" data-type="symbol">Marruecos</option>
+            </select>
+            <button onclick="clearCanvas()" style="background-color: #e74c3c;">🗑️ Borrar</button>
+        </div>
+        <div class="flag-symbol-section">
+            <h3>Símbolos históricos</h3>
+            <div class="flag-symbol-grid">
+                <button type="button" onclick="selectHistoricalSymbol('brazil')"><span class="symbol-preview brazil-symbol"></span>Brasil</button>
+                <button type="button" onclick="selectHistoricalSymbol('rome')"><span class="symbol-preview rome-symbol">SPQR</span>Imp. Romano</button>
+                <button type="button" onclick="selectHistoricalSymbol('spain')"><span class="symbol-preview spain-symbol">♜</span>España</button>
+                <button type="button" onclick="selectHistoricalSymbol('mongolia')"><span class="symbol-preview mongolia-symbol">☼</span>Mongolia</button>
+                <button type="button" onclick="selectHistoricalSymbol('china')"><span class="symbol-preview china-symbol">★</span>China</button>
+                <button type="button" onclick="selectHistoricalSymbol('vietnam')"><span class="symbol-preview vietnam-symbol">★</span>Vietnam</button>
+                <button type="button" onclick="selectHistoricalSymbol('serbia')"><span class="symbol-preview serbia-symbol">✠</span>Serbia</button>
+                <button type="button" onclick="selectHistoricalSymbol('egypt')"><span class="symbol-preview egypt-symbol">🦅</span>Egipto</button>
+                <button type="button" onclick="selectHistoricalSymbol('saudi')"><span class="symbol-preview saudi-symbol">⚔</span>Arabia Saudi</button>
+                <button type="button" onclick="selectHistoricalSymbol('portugal')"><span class="symbol-preview portugal-symbol">◉</span>Portugal</button>
+                <button type="button" onclick="selectHistoricalSymbol('morocco')"><span class="symbol-preview morocco-symbol">☆</span>Marruecos</button>
+            </div>
+        </div>
+        <br><canvas id="flag-canvas" width="300" height="200"></canvas><br><br>
+        <button onclick="saveFlag()" style="background-color: #2ecc71; padding: 15px 30px;">💾 GUARDAR BANDERA</button>
+        <button onclick="showScreen('menu-screen')" style="background-color: #7f8c8d; padding: 15px 30px;">VOLVER</button>
+    </div>
+
+    <div id="flag-gallery-screen" class="hidden">
+        <h2>Tus Banderas Guardadas</h2>
+        <div class="gallery-grid" id="gallery-container"></div><br>
+        <button onclick="openFlagCreator()" style="background-color: #2980b9;">CREAR NUEVA BANDERA</button>
+        <button onclick="closeGallery()" style="background-color: #7f8c8d;">VOLVER</button>
+    </div>
+
+    <div id="continent-editor-screen" class="hidden map-editor-screen">
+        <h2>Editor de continentes</h2>
+        <div class="map-editor-layout">
+            <div class="map-editor-tools">
+                <input id="continent-name" type="text" value="Mi continente" maxlength="32">
+                <select id="continent-template-select" onchange="loadContinentTemplate(this.value)">
+                    <option value="blank">Mapa en blanco</option>
+                    <option value="world">Mundo entero</option>
+                    <option value="europe" selected>Europa</option>
+                    <option value="mediterranean">Mediterráneo</option>
+                    <option value="greece">Grecia antigua</option>
+                    <option value="islands">Archipiélago</option>
+                </select>
+                <button id="continent-tool-coast" class="active" onclick="setContinentTool('coast')">Costas</button>
+                <button id="continent-tool-land" onclick="setContinentTool('land')">Tierra</button>
+                <button id="continent-tool-water" onclick="setContinentTool('water')">Agua</button>
+                <button id="continent-tool-desert" onclick="setContinentTool('desert')">Desierto</button>
+                <button id="continent-tool-mountain" onclick="setContinentTool('mountain')">Montaña</button>
+                <button id="continent-tool-winter" onclick="setContinentTool('winter')">Nieve</button>
+                <button id="continent-tool-erase" onclick="setContinentTool('erase')">Borrar</button>
+                <button id="continent-tool-territory" onclick="setContinentTool('territory')">Pincel fronteras</button>
+                <input id="continent-territory-name" type="text" value="Reino 1" maxlength="28">
+                <button onclick="generateTerritoriesFromBorders()" class="map-territory-btn">Generar territorios</button>
+                <label>Grosor <input id="continent-brush-size" type="range" min="2" max="42" value="8"></label>
+                <button onclick="clearContinentCanvas()">Limpiar mapa</button>
+                <button onclick="saveContinent()" class="map-save-btn">Guardar continente</button>
+                <button onclick="showScreen('menu-screen')">Volver al menu</button>
+            </div>
+            <canvas id="continent-canvas" width="1100" height="620"></canvas>
+        </div>
+    </div>
+
+    <div id="continent-gallery-screen" class="hidden map-editor-screen">
+        <h2>Galeria de continentes</h2>
+        <p class="continent-active-label" id="active-continent-label">Mapa activo: mundo clasico</p>
+        <p class="continent-help">Los mapas con tierra y fronteras son jugables. Usa "Pincel fronteras" sobre la tierra; el pincel se corta al tocar mar o costa.</p>
+        <div class="continent-gallery" id="continent-gallery-container"></div>
+        <button onclick="clearActiveContinent()" style="background-color:#34495e;">USAR MUNDO CLASICO</button>
+        <button onclick="openContinentEditor()" style="background-color:#2980b9;">CREAR NUEVO CONTINENTE</button>
+        <button onclick="showScreen('menu-screen')" style="background-color:#7f8c8d;">VOLVER</button>
+    </div>
+
+    <div id="setup-screen" class="hidden">
+        <h2>Personaliza la Partida</h2>
+        <div style="background: var(--panel-bg); padding: 15px; border-radius: 8px; display: inline-block; margin-bottom: 20px;">
+            <label style="font-size: 1.2em; cursor: pointer; margin-right: 20px;"><input type="radio" name="game-mode" value="1" checked onchange="toggle2P(false)"> 1 Jugador vs IA</label>
+            <label style="font-size: 1.2em; cursor: pointer;"><input type="radio" name="game-mode" value="2" onchange="toggle2P(true)"> 2 Jugadores Local</label>
+        </div>
+
+        <div style="background: var(--panel-bg); padding: 15px; border-radius: 8px; display: inline-block; margin-bottom: 20px;">
+            <label style="font-size: 1.1em; font-weight: bold; margin-right: 10px;">Escenario histórico</label>
+            <select id="scenario-year" onchange="setScenarioYear(this.value)" style="padding: 10px 14px; border-radius: 5px; border: none; font-weight: bold; font-size: 1em;">
+                <option value="-1450">1450 a.C. - Egipto Nuevo Reino</option>
+                <option value="-323">323 a.C. - Alejandro y helenismo</option>
+                <option value="117">117 - Roma en su apogeo</option>
+                <option value="1200">1200 - Edad Media</option>
+                <option value="1492">1492 - Reinos y descubrimientos</option>
+                <option value="1740">1740 - Imperios coloniales</option>
+                <option value="1825">1825 - Independencias y viejos imperios</option>
+                <option value="1928" selected>1928 - Imperios de entreguerras</option>
+                <option value="2026">2026 - Bloques y uniones actuales</option>
+            </select>
+            <label style="margin-left: 14px; font-size: 1em; cursor: pointer;"><input id="campaign-mode" type="checkbox"> Modo campaña</label>
+        </div>
+
+        <div style="background: var(--panel-bg); padding: 15px; border-radius: 8px; display: inline-block; margin-bottom: 20px;">
+            <label style="font-size: 1.1em; font-weight: bold; margin-right: 10px;">Jugar como</label>
+            <select id="p1-empire-select" onchange="setPlayerEmpire(this.value)" style="padding: 10px 14px; border-radius: 5px; border: none; font-weight: bold; font-size: 1em; min-width: 230px;"></select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            <div id="p1-setup-card" style="background: #111; padding: 15px; border-radius: 8px; border: 2px solid #8c7ae6; width: 400px;">
+                <h3 style="color: #8c7ae6; margin-top: 0;">Jugador 1</h3>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                    <div class="flag-box" id="setup-flag-preview-p1"></div>
+                    <input type="text" id="p1-nation" value="Mi Imperio" style="padding: 10px; width: 150px; text-align: center; border-radius: 5px; border: none;">
+                    <input type="color" id="p1-color" value="#8c7ae6" onchange="updateSetupPlayerColor(1)" oninput="updateSetupPlayerColor(1)" style="height: 35px; width: 40px; padding: 0; border: none; border-radius: 5px; cursor: pointer;">
+                </div>
+                <div style="display: flex; justify-content: center; gap: 10px; align-items: center; margin-top: 12px;">
+                    <button onclick="openGallery(1)" style="background-color:#2980b9; padding: 8px 12px;">ESCOGER BANDERA</button>
+                    <label style="font-size: 0.9em; color:#bdc3c7;">Color del imperio</label>
+                </div>
+            </div>
+
+            <div id="p2-setup-div" class="hidden" style="background: #111; padding: 15px; border-radius: 8px; border: 2px solid #e1b12c; width: 400px;">
+                <h3 style="color: #e1b12c; margin-top: 0;">Jugador 2</h3>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: bold; margin-right: 8px;">Jugar como</label>
+                    <select id="p2-empire-select" onchange="setPlayerEmpire(this.value, 2)" style="padding: 8px 10px; border-radius: 5px; border: none; font-weight: bold; min-width: 220px;"></select>
+                </div>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                    <div class="flag-box" id="setup-flag-preview-p2"></div>
+                    <input type="text" id="p2-nation" value="Rusia Imperial" style="padding: 10px; width: 150px; text-align: center; border-radius: 5px; border: none;">
+                    <input type="color" id="p2-color" value="#e1b12c" onchange="updateSetupPlayerColor(2)" oninput="updateSetupPlayerColor(2)" style="height: 35px; width: 40px; padding: 0; border: none; border-radius: 5px; cursor: pointer;">
+                </div>
+                <div style="display: flex; justify-content: center; gap: 10px; align-items: center; margin-top: 12px;">
+                    <button onclick="openGallery(2)" style="background-color:#2980b9; padding: 8px 12px;">ESCOGER BANDERA</button>
+                    <label style="font-size: 0.9em; color:#bdc3c7;">Color del imperio</label>
+                </div>
+            </div>
+        </div>
+        <br><br>
+        <button onclick="startGame()" style="font-size: 1.2em; padding: 15px 40px;">¡A LA CONQUISTA!</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        
+        <div id="commander-switch-container" class="hidden" style="margin-bottom: 15px; display: flex; justify-content: center; gap: 20px;">
+            <button id="btn-com-p1" class="switch-btn switch-active" onclick="setCommander(0)" style="background-color: #8c7ae6; color: white;">🕹️ JUGADOR 1 ACTIVO</button>
+            <button id="btn-com-p2" class="switch-btn" onclick="setCommander(4)" style="background-color: #555; color: white;">JUGADOR 2</button>
+        </div>
+
+        <div style="display: flex; gap: 15px; align-items: flex-start;">
+            
+            <div style="flex: 3; min-width: 600px;">
+                <div id="top-hud">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="flag-box" id="hud-flag-p1"></div>
+                        <strong id="hud-name-p1" style="font-size: 1.1em;">J1</strong>
+                    </div>
+                    <div class="hud-item" style="color:#f1c40f;">💰 <span id="hud-money-p1">0</span></div>
+                    <div class="hud-item">👥 <span id="hud-pop-p1">0</span></div>
+                    <div class="hud-item">🪖 <span id="hud-bat-p1">0</span></div>
+                    <div class="hud-item">Especiales: 
+                        <span style="color:#f1c40f;" title="Generales">🌟<span id="hud-gen-p1">0</span></span> | 
+                        <span style="color:#3498db;" title="Zepelín">🛩️<span id="hud-air-p1">0</span></span> | 
+                        <span style="color:#e67e22;" title="Juggernaut">🦾<span id="hud-jug-p1">0</span></span> | 
+                        <span style="color:#2980b9;" title="Acorazado">🚢<span id="hud-ship-p1">0</span></span> | 
+                        <span style="color:#1abc9c;" title="Paracaidistas">🪂<span id="hud-par-p1">0</span></span> | 
+                        <span style="color:#16a085;" title="Submarinos">⚓<span id="hud-sub-p1">0</span></span> | 
+                        <span style="color:#8e44ad;" title="Espías">🕵️<span id="hud-spy-p1">0</span></span> | 
+                        <span style="color:#e74c3c;" title="Nukes">☢️<span id="hud-nukes-p1">0</span></span>
+                    </div>
+                    <div class="hud-item">📅 <span id="hud-turn">1928</span></div>
+                </div>
+                <div id="map-container">
+                    <svg id="map-overlays" class="hidden">
+                        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e74c3c" /></marker></defs>
+                        <line id="retreat-line" x1="0" y1="0" x2="0" y2="0" stroke="#e74c3c" stroke-width="4" marker-end="url(#arrowhead)" stroke-dasharray="8,5" />
+                    </svg>
+                </div>
+
+                <section id="world-info-section" aria-label="Información del mundo">
+                    <button id="world-info-toggle" type="button" onclick="toggleWorldInfo()" aria-expanded="true" aria-controls="strategy-panel">
+                        <span>Información del mundo</span>
+                        <span id="world-info-toggle-icon">▾</span>
+                    </button>
+                    <div id="strategy-panel"></div>
+                </section>
+                
+                <div style="background: var(--panel-bg); padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; align-items: center;">
+                    <button onclick="openShop(0)" style="background-color: #2ecc71; color: black; font-size: 14px;">🛒 TIENDA P1</button>
+                    <button id="btn-spy-mode-p1" onclick="toggleSpyMode(0)" class="hidden" style="background-color: #8e44ad; font-size: 14px;">MANDAR ESPÍA 🕵️</button>
+                    <button id="btn-nuke-mode-p1" onclick="toggleNukeMode(0)" class="hidden" style="background-color: #c0392b; font-size: 14px;">MISIL ☢️: OFF</button>
+                    <button id="btn-diplomacy-map" onclick="toggleDiplomacyMap()" style="background-color:#2980b9; font-size: 14px;">VISTA DIPLOMÁTICA</button>
+                    <button onclick="endTurn()" style="background-color: #0fb9b1; color: black; font-size: 16px; margin-left: 20px;">Pasar Turno Año (+💰 +👥)</button>
+                </div>
+            </div>
+
+            <div id="p2-sidebar" class="sidebar-p2 hidden">
+                <h3 style="margin-top: 0; color: #f1c40f;">JUGADOR 2</h3>
+                <div style="display:flex; align-items:center; gap: 10px; margin-bottom:15px; justify-content:center;">
+                    <div class="flag-box" id="hud-flag-p2"></div><strong id="hud-name-p2">J2</strong>
+                </div>
+                <div class="hud-item" style="color:#f1c40f;">💰 Dinero: <span id="hud-money-p2">0</span>$</div>
+                <div class="hud-item">👥 Población: <span id="hud-pop-p2">0</span></div>
+                <div class="hud-item">🪖 Batallones: <span id="hud-bat-p2">0</span></div>
+                <hr style="border-color:#444; margin:10px 0;">
+                <div class="hud-item" style="color: #f1c40f;">🌟 Generales: <span id="hud-gen-p2">0</span></div>
+                <div class="hud-item" style="color: #3498db;">🛩️ Zepelines: <span id="hud-air-p2">0</span></div>
+                <div class="hud-item" style="color: #e67e22;">🦾 Juggernauts: <span id="hud-jug-p2">0</span></div>
+                <div class="hud-item" style="color: #2980b9;">🚢 Acorazados: <span id="hud-ship-p2">0</span></div>
+                <div class="hud-item" style="color: #1abc9c;">🪂 Paracaidistas: <span id="hud-par-p2">0</span></div>
+                <div class="hud-item" style="color: #16a085;">⚓ Submarinos: <span id="hud-sub-p2">0</span></div>
+                <div class="hud-item" style="color: #8e44ad;">🕵️ Espías: <span id="hud-spy-p2">0</span></div>
+                <div class="hud-item" style="margin-bottom:15px; color: #e74c3c;">☢️ Nukes: <span id="hud-nukes-p2">0</span></div>
+
+                <button onclick="openShop(4)" style="width: 100%; background-color: #e1b12c; color: black; font-size: 14px; margin-left: 0;">🛒 TIENDA P2</button>
+                <button id="btn-spy-mode-p2" onclick="toggleSpyMode(4)" class="hidden" style="width: 100%; background-color: #8e44ad; font-size: 14px; margin-left: 0;">MANDAR ESPÍA 🕵️</button>
+                <button id="btn-nuke-mode-p2" onclick="toggleNukeMode(4)" class="hidden" style="width: 100%; background-color: #c0392b; font-size: 14px; margin-left: 0;">MISIL ☢️: OFF</button>
+            </div>
+            
+        </div>
+        <div id="log">Bienvenido al año 1928. ¡Descubre los nuevos Espías y Submarinos!</div>
+        <div id="log-actions">
+            <button onclick="returnToMainMenu()" style="background-color:#34495e;">VOLVER AL MENÚ PRINCIPAL</button>
+        </div>
+    </div>
+
+    <div id="battle-screen" class="hidden">
+        <h2 id="battle-title" style="color: var(--accent); margin: 0; padding-bottom:5px;">BATALLA</h2>
+        
+        <div id="battle-controls">
+            <div id="p1-battle-keys" style="text-align:left; font-size:0.85em; flex:1; color: #2ecc71;">
+                <b>J1 (Izq):</b> [WASD][Z/X] | <span style="color:#f1c40f;">[G] Gen</span> | <span style="color:#3498db;">[C] Zep</span> | <span style="color:#e67e22;">[T] Jug</span> | <span style="color:#2980b9;">[B] Barco</span> | <span style="color:#1abc9c;">[P] Para</span> | <span style="color:#16a085;">[M] Sub</span>
+            </div>
+            <div style="display:flex; flex-wrap: wrap; justify-content:center; flex:1;">
+                <button class="special-btn" id="btn-deploy-p1" onclick="manualDeploy('left')" style="background-color: #2ecc71; color: black;">+ 🪖 J1</button>
+                <button class="special-btn" id="btn-deploy-p2" onclick="manualDeploy('right')" style="background-color: #e1b12c; color: black;" class="hidden">+ 🪖 J2</button>
+            </div>
+            <div id="p2-battle-keys" style="text-align:right; font-size:0.85em; flex:1; color: #e74c3c;">
+                <b>ENEMIGOS (Der):</b> [FLECHAS][1/2]
+            </div>
+        </div>
+        <div id="battle-special-toolbar"></div>
+        
+        <div id="battle-status" style="font-family: monospace; font-size: 1.2em; margin-bottom: 10px;">Cargando tropas...</div>
+        
+        <div id="battle-arena">
+            <div id="pause-overlay" class="hidden">
+                <h2>PAUSADO</h2>
+                <div id="battle-tactical-panel"></div>
+                <button onclick="tacticalRetreat()" style="background-color:#f39c12; color:#111; padding: 12px 24px; font-size: 1em; border: 2px solid white;">RETIRADA TÁCTICA</button>
+                <button onclick="quitToMenu()" style="background-color: #e74c3c; padding: 15px 30px; font-size: 1.2em; border: 2px solid white;">RETIRADA ESTRATÉGICA AL MENÚ</button>
+            </div>
+            <div class="goal-line-left"></div>
+            <div class="goal-line-right"></div>
+        </div>
+        <div style="margin-top: 10px;">
+            <button id="btn-pause" onclick="togglePause()" style="background-color: #34495e; color: white; padding: 10px 30px; font-size: 16px; border: 2px solid #fff;">⏸ PAUSAR BATALLA</button>
+            <button id="btn-return-map" class="hidden" onclick="returnToMap()">VOLVER AL MAPA</button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1>¡HAS SIDO ANIQUILADO!</h1>
+        <p>Tus enemigos han conquistado tu última provincia. La historia olvidará tu imperio.</p>
+        <button onclick="showScreen('menu-screen')" style="background-color: #34495e; padding: 15px 30px; font-size: 1.2em;">VOLVER AL MENÚ PRINCIPAL</button>
+    </div>
+
+    <script src="src/data/world-map.js" charset="UTF-8" defer></script>
+    <script src="src/legacy/game.js" charset="UTF-8" defer></script>
+</body>
+</html>
